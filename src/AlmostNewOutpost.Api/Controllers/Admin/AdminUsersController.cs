@@ -2,48 +2,36 @@
 using AlmostNewOutpost.Api.Models.Entities;
 using AlmostNewOutpost.Api.Models.Requests;
 using AlmostNewOutpost.Api.Models.Responses;
-using Microsoft.AspNetCore.Identity; 
+using AlmostNewOutpost.Api.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
-
 
 namespace AlmostNewOutpost.Api.Controllers.Admin
 {
-
     [ApiController]
     [Route("api/admin/users")]
     public class AdminUsersController : ControllerBase
     {
         private readonly OutpostDbContext _db;
-
         private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly UserService _userService;
 
         public AdminUsersController(
             OutpostDbContext db,
-            IPasswordHasher<User> passwordHasher)
+            IPasswordHasher<User> passwordHasher,
+            UserService userService)
         {
             _db = db;
             _passwordHasher = passwordHasher;
+            _userService = userService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<AdminUserDto>>> GetAll([FromQuery] bool
-includeArchived = false)
+        public async Task<ActionResult<List<AdminUserDto>>> GetAll(
+            [FromQuery] bool includeArchived = false)
         {
-            List<AdminUserDto> users = await (
-            from user in _db.Users
-            join role in _db.Roles on user.RoleId equals role.RoleId
-            where includeArchived || user.ArchivedAtUtc == null
-            orderby user.Username
-            select new AdminUserDto
-            {
-                Id = user.UserId,
-                Username = user.Username,
-                RoleId = role.RoleId,
-                Role = role.RoleName,
-                ArchivedAtUtc = user.ArchivedAtUtc,
-            }).ToListAsync();
+            List<AdminUserDto> users = await _userService.GetAllAsync(includeArchived);
             return Ok(users);
         }
 
@@ -58,6 +46,7 @@ includeArchived = false)
                     title: "User not found.",
                     statusCode: StatusCodes.Status404NotFound);
             }
+
             return Ok(adminuser);
         }
 
@@ -65,16 +54,20 @@ includeArchived = false)
         public async Task<ActionResult<AdminUserDto>> Create(CreateUserRequest request)
         {
             string username = request.Username.Trim();
-            
-            bool usernameTaken = await _db.Users.AnyAsync(user => user.Username == username);
-                
+
+            bool usernameTaken = await _db.Users.AnyAsync(user =>
+                user.Username == username);
+
             if (usernameTaken)
             {
                 return Problem(
-                    title: "That usernname is already taken.",
+                    title: "That username is already taken.",
                     statusCode: StatusCodes.Status409Conflict);
             }
-           bool roleExists = await _db.Roles.AnyAsync(role => role.RoleId == request.RoleId);
+
+            bool roleExists = await _db.Roles.AnyAsync(role =>
+                role.RoleId == request.RoleId);
+
             if (!roleExists)
             {
                 ModelState.AddModelError(
@@ -83,8 +76,9 @@ includeArchived = false)
 
                 return ValidationProblem(ModelState);
             }
-                string passwordHash = _passwordHasher.HashPassword(
-                    new User(),
+
+            string passwordHash = _passwordHasher.HashPassword(
+                new User(),
                 request.Password);
 
             User user = new User
@@ -94,34 +88,33 @@ includeArchived = false)
                 RoleId = request.RoleId!.Value
             };
 
-                _db.Users.Add(user);
+            _db.Users.Add(user);
 
             try
-                {
-                    await _db.SaveChangesAsync();
-                }
+            {
+                await _db.SaveChangesAsync();
+            }
             catch (DbUpdateException exception)
-             
                 when (DatabaseErrors.GetErrorNumber(exception) == DatabaseErrors.DuplicateKey)
-                        {
-                        return Problem(
-                            title: "That username is already taken.",
-                            statusCode: StatusCodes.Status409Conflict);
-                    }
+            {
+                return Problem(
+                    title: "That username is already taken.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
 
             AdminUserDto? created = await FindUserAsync(user.UserId);
-                    return CreatedAtAction(
-                        nameof(GetById),
-                        new { id = user.UserId },
-                        created);
-                }
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = user.UserId },
+                created);
+        }
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult<AdminUserDto>> Update(
             [FromRoute] int id,
             UpdateUserRequest request)
         {
-     
             User? user = await _db.Users.FindAsync(id);
 
             if (user == null)
@@ -130,9 +123,9 @@ includeArchived = false)
                     title: "User not found.",
                     statusCode: StatusCodes.Status404NotFound);
             }
-          
+
             string username = request.Username.Trim();
- 
+
             bool usernameTaken = await _db.Users.AnyAsync(other =>
                 other.Username == username && other.UserId != id);
 
@@ -176,17 +169,18 @@ includeArchived = false)
         private async Task<AdminUserDto?> FindUserAsync(int id)
         {
             AdminUserDto? adminuser = await (
-            from user in _db.Users
-            join role in _db.Roles on user.RoleId equals role.RoleId
-            where user.UserId == id
-            select new AdminUserDto
-            {
-                Id = user.UserId,
-                Username = user.Username,
-                RoleId = role.RoleId,
-                Role = role.RoleName,
-                ArchivedAtUtc = user.ArchivedAtUtc,
-            }).FirstOrDefaultAsync();
+                from user in _db.Users
+                join role in _db.Roles on user.RoleId equals role.RoleId
+                where user.UserId == id
+                select new AdminUserDto
+                {
+                    Id = user.UserId,
+                    Username = user.Username,
+                    RoleId = role.RoleId,
+                    Role = role.RoleName,
+                    ArchivedAtUtc = user.ArchivedAtUtc
+                }).FirstOrDefaultAsync();
+
             return adminuser;
         }
     }
