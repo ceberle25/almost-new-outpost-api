@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace AlmostNewOutpost.Api.Controllers.Admin
 {
 
+    /// <summary>
+    /// Controller for managing admin roles, including listing all roles and is
+    /// intended for administrative use only and should be secured appropriately.
+    /// </summary>
+
+
     [ApiController]
     [Route("api/admin/roles")]
     public class AdminRolesController : ControllerBase

@@ -15,6 +15,7 @@
     warning NU1510 on .NET 10). Microsoft.IdentityModel.JsonWebTokens comes in with JwtBearer.
   -->
   <ItemGroup>
+    <PackageReference Include="DataAnnotationsExtensions" Version="5.0.1.27" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.14" />
     <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
